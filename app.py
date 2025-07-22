@@ -120,14 +120,28 @@ knowledge_base.load()
 print("✅ Knowledge base loaded successfully!")
 
 agent = Agent(
+    name="PDF Chat Agent",
     model=OpenAIChat(id="gpt-4o"),
     reasoning_model=OpenAIChat(id="gpt-4o"),
     knowledge=knowledge_base,
-    # Add a tool to search the knowledge base which enables agentic RAG.
-    # This is enabled by default when `knowledge` is provided to the Agent.
     search_knowledge=True,
     show_tool_calls=True,
     markdown=True,
+    add_history_to_messages=True,
+    num_history_responses=3,
+    add_datetime_to_instructions=True,
+    instructions="""
+You are a PDF Chat Agent that can ONLY answer questions about the content of the PDF documents in your knowledge base.
+
+IMPORTANT RULES:
+1. ONLY answer questions that are directly related to the content of the PDF documents you have access to
+2. If a question is not related to the PDF content, respond with: "I can only answer questions about the content of the PDF documents in my knowledge base. This question appears to be outside the scope of the available documents. Please ask me about the content of the uploaded PDF files."
+3. If you cannot find relevant information in the PDF documents to answer a question, say: "I cannot find information about this topic in the available PDF documents. Please check if the relevant document has been uploaded or rephrase your question to focus on the content of the uploaded files."
+4. Always base your answers on the actual content of the PDF documents, not on general knowledge
+5. If asked about topics not covered in the PDFs, politely redirect the user to ask about the PDF content instead
+
+Your responses should be helpful, accurate, and strictly based on the PDF content available to you.
+""",
 )
 
 def chat_with_pdf():
@@ -136,7 +150,8 @@ def chat_with_pdf():
     print("📚 PDF Chat Interface")
     print("="*60)
     print("Ask questions about your PDF documents. Type 'quit' or 'exit' to end the chat.")
-    print("Type 'help' for some example questions.")
+    print("Type 'help' for available commands and example questions.")
+    print("Type 'list' to see available PDF documents.")
     print("Type 'refresh' to check for new PDF files.")
     print("-"*60)
     
@@ -159,6 +174,11 @@ def chat_with_pdf():
                 print("• Explain the concepts mentioned in the documents")
                 print("• What are the best practices discussed?")
                 print("• Can you provide examples from the documents?")
+                print("\n🔧 Available commands:")
+                print("• 'help' - Show this help message")
+                print("• 'refresh' - Check for new PDF files")
+                print("• 'list' or 'pdfs' - Show available PDF documents")
+                print("• 'quit' or 'exit' - End the chat")
                 continue
             
             # Check for refresh command
@@ -168,6 +188,21 @@ def chat_with_pdf():
                     print("✅ Refresh completed!")
                 else:
                     print("❌ Refresh failed!")
+                continue
+            
+            # Check for list command
+            if user_question.lower() in ['list', 'pdfs', 'files']:
+                print("\n📄 Available PDF documents:")
+                pdf_folder = Path("pdf/processed")
+                if pdf_folder.exists():
+                    pdf_files = list(pdf_folder.glob("*.pdf"))
+                    if pdf_files:
+                        for i, pdf_file in enumerate(pdf_files, 1):
+                            print(f"   {i}. {pdf_file.name}")
+                    else:
+                        print("   No PDF files found in processed folder.")
+                else:
+                    print("   Processed folder does not exist.")
                 continue
             
             # Skip empty questions

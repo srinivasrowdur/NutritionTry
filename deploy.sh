@@ -58,7 +58,7 @@ sleep 10
 
 # Check if the service is healthy
 echo "🏥 Checking service health..."
-if curl -f http://localhost:8001/status > /dev/null 2>&1; then
+if curl -f http://localhost:8001/health > /dev/null 2>&1; then
     echo "✅ Service is healthy!"
     echo ""
     echo "🎉 PDF Chat API is now running!"
