@@ -151,8 +151,9 @@ https://pdf-chat-api-xxxxx-uc.a.run.app
 
 - **Root**: `GET /` - Service information
 - **Health Check**: `GET /health` - Service health status
+- **PDF List**: `GET /pdfs` - List available PDF documents
 - **API Documentation**: `GET /docs` - Interactive API docs
-- **Chat**: `POST /chat` - Main chat endpoint
+- **Chat**: `POST /chat` - Main chat endpoint (PDF content only)
 
 ### Monitoring and Logs
 
@@ -221,6 +222,34 @@ Google Cloud Run offers a generous free tier:
 - **Google Cloud Documentation**: [Cloud Run Docs](https://cloud.google.com/run/docs)
 - **Google Cloud Support**: Available in Google Cloud Console
 - **Community**: [Stack Overflow](https://stackoverflow.com/questions/tagged/google-cloud-run)
+
+## Knowledge Base Constraints
+
+The PDF Chat Agent has been configured with strict knowledge base constraints to ensure it only responds to questions about the uploaded PDF content:
+
+### How It Works
+
+1. **PDF-Only Responses**: The agent will only answer questions that are directly related to the content of the uploaded PDF documents
+2. **Rejection of Off-Topic Questions**: Questions about general knowledge, current events, or topics not covered in the PDFs will be politely rejected
+3. **Clear Feedback**: When a question is outside the scope, the agent provides clear guidance to ask about PDF content instead
+
+### Example Behavior
+
+**✅ PDF-Related Questions (Will be answered):**
+- "What are the main topics in the documents?"
+- "What does the Tetra Pak document cover?"
+- "Summarize the key points from the PDFs"
+
+**❌ General Questions (Will be rejected):**
+- "What is the capital of France?"
+- "How do I install Python?"
+- "What's the weather like today?"
+
+### Benefits
+
+- **Focused Responses**: Ensures users get relevant information from the PDF content
+- **Prevents Hallucination**: Reduces the risk of the agent making up information
+- **Clear Boundaries**: Users understand exactly what the agent can and cannot help with
 
 ## Security Considerations
 

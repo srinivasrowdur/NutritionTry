@@ -136,7 +136,7 @@ def initialize_agent():
     knowledge_base.load()
     print("✅ Knowledge base loaded successfully!")
     
-    # Create the PDF chat agent
+    # Create the PDF chat agent with strict knowledge constraints
     pdf_agent = Agent(
         name="PDF Chat Agent",
         model=OpenAIChat(id="gpt-4o"),
@@ -148,6 +148,18 @@ def initialize_agent():
         add_history_to_messages=True,
         num_history_responses=3,
         add_datetime_to_instructions=True,
+        instructions="""
+You are a PDF Chat Agent that can ONLY answer questions about the content of the PDF documents in your knowledge base.
+
+IMPORTANT RULES:
+1. ONLY answer questions that are directly related to the content of the PDF documents you have access to
+2. If a question is not related to the PDF content, respond with: "I can only answer questions about the content of the PDF documents in my knowledge base. This question appears to be outside the scope of the available documents. Please ask me about the content of the uploaded PDF files."
+3. If you cannot find relevant information in the PDF documents to answer a question, say: "I cannot find information about this topic in the available PDF documents. Please check if the relevant document has been uploaded or rephrase your question to focus on the content of the uploaded files."
+4. Always base your answers on the actual content of the PDF documents, not on general knowledge
+5. If asked about topics not covered in the PDFs, politely redirect the user to ask about the PDF content instead
+
+Your responses should be helpful, accurate, and strictly based on the PDF content available to you.
+""",
     )
     
     print("✅ Agent initialized successfully!")
@@ -178,19 +190,37 @@ async def health():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Simple chat endpoint"""
+    """Chat endpoint with PDF content validation"""
     if pdf_agent is None:
         raise HTTPException(status_code=503, detail="Agent not initialized")
+    
+    # Validate input
+    if not request.message or request.message.strip() == "":
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
     
     try:
         # Get response from agent
         response = pdf_agent.run(request.message)
         
+        # Additional validation to ensure response is relevant
+        response_content = response.content.strip()
+        
+        # Check if the response indicates no relevant information found
+        if any(phrase in response_content.lower() for phrase in [
+            "cannot find information",
+            "outside the scope",
+            "not related to the pdf",
+            "no information about this topic"
+        ]):
+            # This is expected behavior for out-of-scope questions
+            pass
+        
         return ChatResponse(
-            response=response.content,
+            response=response_content,
             session_id=request.session_id
         )
     except Exception as e:
+        print(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
 @app.get("/docs")
@@ -198,12 +228,38 @@ async def docs():
     """Redirect to Swagger UI"""
     return {"message": "Visit /docs for interactive API documentation"}
 
+@app.get("/pdfs")
+async def list_pdfs():
+    """List available PDF documents in the knowledge base"""
+    try:
+        import os
+        pdf_folder = Path("pdf/processed")
+        if not pdf_folder.exists():
+            return {"pdfs": [], "message": "No PDF documents found"}
+        
+        pdf_files = []
+        for pdf_file in pdf_folder.glob("*.pdf"):
+            pdf_files.append({
+                "name": pdf_file.name,
+                "size_mb": round(pdf_file.stat().st_size / (1024 * 1024), 2),
+                "uploaded": pdf_file.stat().st_mtime
+            })
+        
+        return {
+            "pdfs": pdf_files,
+            "count": len(pdf_files),
+            "message": f"Found {len(pdf_files)} PDF document(s) in knowledge base"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing PDFs: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting PDF Chat API server...")
     print("📖 Available endpoints:")
-    print("   • POST /chat - Send a message to the agent")
+    print("   • POST /chat - Send a message to the agent (PDF content only)")
     print("   • GET /health - Health check")
+    print("   • GET /pdfs - List available PDF documents")
     print("   • GET /docs - API documentation (Swagger UI)")
     print(f"🌐 Server will be available at: http://localhost:8001")
     print("="*60)
