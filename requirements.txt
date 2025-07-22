@@ -2,3 +2,7 @@ agno
 python-dotenv
 openai
 lancedb
+streamlit
+fastapi
+uvicorn
+pypdf
